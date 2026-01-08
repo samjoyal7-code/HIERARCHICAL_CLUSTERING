@@ -1,75 +1,66 @@
-import streamlit as st
 import pandas as pd
 import matplotlib.pyplot as plt
-import seaborn as sns
-
-from sklearn.datasets import load_wine
 from sklearn.preprocessing import StandardScaler
 from scipy.cluster.hierarchy import dendrogram, linkage
 from sklearn.cluster import AgglomerativeClustering
-
-# Page config
-st.set_page_config(page_title="Hierarchical Clustering", layout="wide")
-
-st.title("🔗 Hierarchical Clustering Demo")
-st.write("This app demonstrates Hierarchical Clustering using the Wine dataset.")
-
-# Load dataset
-wine = load_wine()
-df = pd.DataFrame(wine.data, columns=wine.feature_names)
-
-st.subheader("📊 Dataset Preview")
-st.dataframe(df.head())
-
-# Standardize data
+df = pd.read_csv("Mall_Customers.csv")
+df.head()
+CustomerID	Genre	Age	Annual Income (k$)	Spending Score (1-100)
+0	1	Male	19	15	39
+1	2	Male	21	15	81
+2	3	Female	20	16	6
+3	4	Female	23	16	77
+4	5	Female	31	17	40
+X = df.iloc[:, 3:5] 
 scaler = StandardScaler()
-scaled_data = scaler.fit_transform(df)
+X_scaled = scaler.fit_transform(X)
+plt.figure(figsize=(10, 6))
+dendrogram(
+    linkage(X_scaled, method='ward')
+)
+plt.title("Dendrogram")
+plt.xlabel("Customers")
+plt.ylabel("Euclidean Distance")
+plt.show()
 
-# Sidebar controls
-st.sidebar.header("⚙️ Clustering Settings")
-num_clusters = st.sidebar.slider("Select number of clusters", 2, 6, 3)
-linkage_method = st.sidebar.selectbox(
-    "Select linkage method",
-    ["ward", "complete", "average", "single"]
+hc = AgglomerativeClustering(
+    n_clusters=5,
+    metric='euclidean',
+    linkage='ward'
 )
 
-# Dendrogram
-st.subheader("🌳 Dendrogram")
-linked = linkage(scaled_data, method=linkage_method)
+clusters = hc.fit_predict(X_scaled)
+df['Cluster'] = clusters
+df.head()
+CustomerID	Genre	Age	Annual Income (k$)	Spending Score (1-100)	Cluster
+0	1	Male	19	15	39	4
+1	2	Male	21	15	81	3
+2	3	Female	20	16	6	4
+3	4	Female	23	16	77	3
+4	5	Female	31	17	40	4
+plt.figure(figsize=(8, 6))
+plt.scatter(X_scaled[:, 0], X_scaled[:, 1], c=clusters)
+plt.title("Hierarchical Clustering of Customers")
+plt.xlabel("Annual Income (scaled)")
+plt.ylabel("Spending Score (scaled)")
+plt.show()
 
-fig, ax = plt.subplots(figsize=(12, 5))
-dendrogram(linked, truncate_mode="lastp", p=30, ax=ax)
-ax.set_title("Hierarchical Clustering Dendrogram")
-ax.set_xlabel("Data Points")
-ax.set_ylabel("Distance")
-st.pyplot(fig)
+import numpy as np
 
-# Agglomerative Clustering
-cluster = AgglomerativeClustering(
-    n_clusters=num_clusters,
-    linkage=linkage_method
-)
-labels = cluster.fit_predict(scaled_data)
+centroids = []
+for i in range(len(set(clusters))):
+    centroids.append(X_scaled[clusters == i].mean(axis=0))
 
-df["Cluster"] = labels
+centroids = np.array(centroids)
+import pickle
 
-st.subheader("📌 Clustered Data (First 10 rows)")
-st.dataframe(df.head(10))
+# Save the scaler
+with open("scaler.pkl", "wb") as f:
+    pickle.dump(scaler, f)
 
-# Visualization
-st.subheader("🎨 Cluster Visualization")
+# Save the centroids
+with open("centroids.pkl", "wb") as f:
+    pickle.dump(centroids, f)
 
-fig2, ax2 = plt.subplots(figsize=(8, 6))
-sns.scatterplot(
-    x=df.iloc[:, 0],
-    y=df.iloc[:, 1],
-    hue=df["Cluster"],
-    palette="Set2",
-    ax=ax2
-)
-ax2.set_xlabel(df.columns[0])
-ax2.set_ylabel(df.columns[1])
-ax2.set_title("Cluster Visualization (2 Features)")
-st.pyplot(fig2)
-
-st.success("✅ Hierarchical Clustering completed successfully!")
+print("✅ Model saved successfully")
+✅ Model saved successfully
